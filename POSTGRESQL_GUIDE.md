@@ -181,6 +181,86 @@ DROP DATABASE learning_db;
 - **Database does not exist:** Connect to an existing database (such as `postgres`) and create `learning_db` first.
 - **A command appears stuck at a prompt:** In `psql`, an unfinished quote or missing semicolon can leave the statement incomplete. Press `Ctrl+C` to cancel the current input and try again.
 
+## Next lesson: relationships, foreign keys, and joins
+
+You have practiced querying one table. This lesson introduces related tables. It uses `authors` and `library_books` so your existing `books` table remains unchanged.
+
+Run the setup once in your practice database:
+
+```sql
+CREATE TABLE authors (
+    id integer GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    name text NOT NULL UNIQUE,
+    country text
+);
+
+CREATE TABLE library_books (
+    id integer GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    title text NOT NULL,
+    published_year integer CHECK (published_year > 0),
+    author_id integer REFERENCES authors(id) ON DELETE SET NULL
+);
+```
+
+`library_books.author_id` is a **foreign key** referencing `authors.id`. The `ON DELETE SET NULL` rule keeps a book if its author is deleted, while clearing the book's `author_id`.
+
+### Add sample data
+
+```sql
+INSERT INTO authors (name, country)
+VALUES
+    ('J. R. R. Tolkien', 'United Kingdom'),
+    ('Jane Austen', 'United Kingdom'),
+    ('Mary Shelley', 'United Kingdom');
+
+INSERT INTO library_books (title, published_year, author_id)
+VALUES
+    ('The Hobbit', 1937, (SELECT id FROM authors WHERE name = 'J. R. R. Tolkien')),
+    ('Pride and Prejudice', 1813, (SELECT id FROM authors WHERE name = 'Jane Austen')),
+    ('Frankenstein', 1818, (SELECT id FROM authors WHERE name = 'Mary Shelley'));
+```
+
+### Combine tables with joins
+
+An `INNER JOIN` returns books that have a matching author:
+
+```sql
+SELECT library_books.title, authors.name AS author, library_books.published_year
+FROM library_books
+INNER JOIN authors ON library_books.author_id = authors.id
+ORDER BY library_books.title;
+```
+
+A `LEFT JOIN` returns every book, even if it has no matching author:
+
+```sql
+SELECT library_books.title, authors.name AS author
+FROM library_books
+LEFT JOIN authors ON library_books.author_id = authors.id;
+```
+
+### Count books per author
+
+```sql
+SELECT authors.name, COUNT(library_books.id) AS book_count
+FROM authors
+LEFT JOIN library_books ON library_books.author_id = authors.id
+GROUP BY authors.id, authors.name
+ORDER BY book_count DESC, authors.name;
+```
+
+The `LEFT JOIN` keeps authors who have no books in the result. `COUNT(library_books.id)` counts only matched books.
+
+### Practice
+
+Try these without looking up a solution first:
+
+1. Show books published before 1900, including their authors.
+2. Add another author and a book by that author.
+3. Find authors who have no books.
+4. Show authors with more than one book using `HAVING`.
+5. Explain the difference between the `INNER JOIN` and `LEFT JOIN` results.
+
 ## Learning sequence
 
 1. Practice `SELECT`, `WHERE`, `ORDER BY`, and `LIMIT`.
